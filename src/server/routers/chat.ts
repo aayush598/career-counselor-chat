@@ -129,41 +129,71 @@ const generateStubbedAI = publicProcedure
 const generateAI = publicProcedure
   .input(z.object({ sessionId: z.number() }))
   .mutation(async ({ input }) => {
-    try {
-      const history = await db
-        .select()
-        .from(messages)
-        .where(eq(messages.sessionId, input.sessionId))
-        .orderBy(desc(messages.createdAt))
-        .limit(15);
+    const history = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.sessionId, input.sessionId))
+      .orderBy(desc(messages.createdAt))
+      .limit(15);
 
-      const ordered = history.reverse();
-      const aiReply = await complete(
-        ordered.map((m) => ({
+    const ordered = history.reverse();
+
+    const aiReply = await complete(
+      ordered.map((m) => ({
+        role: m.sender === "user" ? "user" : "assistant",
+        content: m.content,
+      }))
+    );
+
+    const [inserted] = await db
+      .insert(messages)
+      .values({
+        sessionId: input.sessionId,
+        content: aiReply,
+        sender: "ai",
+      })
+      .returning();
+
+    // Update session.updatedAt
+    const [session] = await db
+      .update(chatSessions)
+      .set({ updatedAt: new Date() })
+      .where(eq(chatSessions.id, input.sessionId))
+      .returning();
+
+    // 🔥 Auto-title logic: only if still “Untitled…”
+    if (session?.title?.startsWith("Untitled")) {
+      const titleSuggestion = await complete([
+        {
+          role: "system",
+          content: "Summarize this conversation in 5 words or fewer, suitable as a chat title.",
+        },
+        ...ordered.map((m) => ({
           role: m.sender === "user" ? "user" : "assistant",
           content: m.content,
-        }))
-      );
+        })),
+      ]);
 
-      const [inserted] = await db
-        .insert(messages)
-        .values({
-          sessionId: input.sessionId,
-          content: aiReply,
-          sender: "ai",
-        })
-        .returning();
-
-      await db
-        .update(chatSessions)
-        .set({ updatedAt: new Date() })
-        .where(eq(chatSessions.id, input.sessionId));
-
-      return inserted;
-    } catch (err) {
-      console.error("generateAI failed:", err);
-      throw new Error("AI failed to generate a response");
+      if (titleSuggestion && titleSuggestion.trim().length > 0) {
+        await db
+          .update(chatSessions)
+          .set({ title: titleSuggestion.trim() })
+          .where(eq(chatSessions.id, input.sessionId));
+      }
     }
+
+    return inserted;
+  });
+
+const renameSession = publicProcedure
+  .input(z.object({ id: z.number(), title: z.string().min(1) }))
+  .mutation(async ({ input }) => {
+    const [updated] = await db
+      .update(chatSessions)
+      .set({ title: input.title, updatedAt: new Date() })
+      .where(eq(chatSessions.id, input.id))
+      .returning();
+    return updated;
   });
 
 export const chatRouter = router({
@@ -172,6 +202,7 @@ export const chatRouter = router({
   listMessages,
   createSession,
   addMessage,
-  generateAI, // ✅ real AI
-  generateStubbedAI, // ✅ keep for local dev
+  generateAI,
+  generateStubbedAI,
+  renameSession, // 👈 add this
 });

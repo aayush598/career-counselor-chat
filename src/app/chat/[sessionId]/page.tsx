@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { debounce } from "lodash";
 
 function MessageBubble({ sender, content }: { sender: string; content: string }) {
   return (
@@ -27,6 +28,25 @@ function MessageBubble({ sender, content }: { sender: string; content: string })
 export default function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [message, setMessage] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState("");
+
+  const { data: session } = trpc.chat.getSession.useQuery(
+    {
+      id: Number(sessionId),
+    },
+    {
+      onSuccess: (s) => setTitle(s.title),
+    }
+  );
+
+  // Rename mutation
+  const rename = trpc.chat.renameSession.useMutation();
+
+  // Debounced save
+  const saveTitle = debounce((newTitle: string) => {
+    rename.mutate({ id: Number(sessionId), title: newTitle });
+  }, 500);
 
   const utils = trpc.useUtils();
 
