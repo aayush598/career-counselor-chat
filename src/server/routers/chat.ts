@@ -92,10 +92,37 @@ const createSession = publicProcedure
 
     return session; // will include id
   });
+const addMessage = publicProcedure
+  .input(
+    z.object({
+      sessionId: z.number(),
+      content: z.string().min(1),
+      sender: z.enum(["user", "ai"]), // fix: use z.enum
+    })
+  )
+  .mutation(async ({ input }) => {
+    const [inserted] = await db
+      .insert(messages)
+      .values({
+        sessionId: input.sessionId,
+        content: input.content,
+        sender: input.sender,
+      })
+      .returning();
+
+    // Update session.updatedAt so it floats up in session list
+    await db
+      .update(chatSessions)
+      .set({ updatedAt: new Date() })
+      .where(eq(chatSessions.id, input.sessionId));
+
+    return inserted;
+  });
 
 export const chatRouter = router({
   listSessions,
   getSession,
   listMessages,
-  createSession, // ✅ added
+  createSession,
+  addMessage, // ✅ new mutation
 });
