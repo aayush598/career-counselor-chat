@@ -4,7 +4,7 @@ import { db } from "../db";
 import { chatSessions, messages } from "../db/schema";
 import { desc, asc, eq, gt, and } from "drizzle-orm";
 
-// List sessions (paginated)
+// List sessions
 const listSessions = publicProcedure
   .input(
     z.object({
@@ -34,10 +34,9 @@ const listSessions = publicProcedure
     };
   });
 
-// Get single session
+// Get session
 const getSession = publicProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
   const [session] = await db.select().from(chatSessions).where(eq(chatSessions.id, input.id));
-
   if (!session) throw new Error("Session not found");
   return session;
 });
@@ -47,16 +46,13 @@ const listMessages = publicProcedure
   .input(
     z.object({
       sessionId: z.number(),
-      cursor: z.number().nullish(), // last message id
+      cursor: z.number().nullish(),
       limit: z.number().min(1).max(50).default(20),
     })
   )
   .query(async ({ input }) => {
     const conditions = [eq(messages.sessionId, input.sessionId)];
-
-    if (input.cursor) {
-      conditions.push(gt(messages.id, input.cursor));
-    }
+    if (input.cursor) conditions.push(gt(messages.id, input.cursor));
 
     const rows = await db
       .select()
@@ -65,52 +61,62 @@ const listMessages = publicProcedure
       .orderBy(asc(messages.createdAt))
       .limit(input.limit);
 
-    return {
-      messages: rows,
-      nextCursor: rows.length ? rows[rows.length - 1].id : null,
-    };
+    return { messages: rows, nextCursor: rows.length ? rows[rows.length - 1].id : null };
   });
 
+// Create session
 const createSession = publicProcedure
-  .input(
-    z.object({
-      title: z.string().optional(),
-    })
-  )
+  .input(z.object({ title: z.string().optional() }))
   .mutation(async ({ input }) => {
     const now = new Date();
     const defaultTitle = `Untitled session – ${now.toLocaleDateString()}`;
-
     const [session] = await db
       .insert(chatSessions)
-      .values({
-        title: input.title || defaultTitle,
-        createdAt: now,
-        updatedAt: now,
-      })
+      .values({ title: input.title || defaultTitle, createdAt: now, updatedAt: now })
       .returning();
-
-    return session; // will include id
+    return session;
   });
+
+// Add message
 const addMessage = publicProcedure
   .input(
-    z.object({
-      sessionId: z.number(),
-      content: z.string().min(1),
-      sender: z.enum(["user", "ai"]), // fix: use z.enum
-    })
+    z.object({ sessionId: z.number(), content: z.string().min(1), sender: z.enum(["user", "ai"]) })
   )
   .mutation(async ({ input }) => {
     const [inserted] = await db
       .insert(messages)
-      .values({
-        sessionId: input.sessionId,
-        content: input.content,
-        sender: input.sender,
-      })
+      .values({ sessionId: input.sessionId, content: input.content, sender: input.sender })
       .returning();
 
-    // Update session.updatedAt so it floats up in session list
+    await db
+      .update(chatSessions)
+      .set({ updatedAt: new Date() })
+      .where(eq(chatSessions.id, input.sessionId));
+    return inserted;
+  });
+
+// Stub AI response
+const generateStubbedAI = publicProcedure
+  .input(z.object({ sessionId: z.number() }))
+  .mutation(async ({ input }) => {
+    await new Promise((res) => setTimeout(res, 500 + Math.random() * 500));
+
+    const [lastUserMsg] = await db
+      .select()
+      .from(messages)
+      .where(and(eq(messages.sessionId, input.sessionId), eq(messages.sender, "user")))
+      .orderBy(desc(messages.createdAt))
+      .limit(1);
+
+    const reply = lastUserMsg
+      ? `Echo: ${lastUserMsg.content}`
+      : "Hello! I'm your AI assistant (stubbed).";
+
+    const [inserted] = await db
+      .insert(messages)
+      .values({ sessionId: input.sessionId, content: reply, sender: "ai" })
+      .returning();
+
     await db
       .update(chatSessions)
       .set({ updatedAt: new Date() })
@@ -124,5 +130,6 @@ export const chatRouter = router({
   getSession,
   listMessages,
   createSession,
-  addMessage, // ✅ new mutation
+  addMessage,
+  generateStubbedAI,
 });

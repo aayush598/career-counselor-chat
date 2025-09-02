@@ -28,28 +28,25 @@ export default function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [message, setMessage] = useState("");
 
-  // Messages query
+  const utils = trpc.useUtils();
+
+  // Query: messages
   const { data, fetchNextPage, hasNextPage, isLoading } = trpc.chat.listMessages.useInfiniteQuery(
     { sessionId: Number(sessionId), limit: 10 },
-    {
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-    }
+    { getNextPageParam: (lastPage) => lastPage.nextCursor }
   );
 
-  // Add message mutation
-  const utils = trpc.useUtils();
+  // Mutations
   const addMessage = trpc.chat.addMessage.useMutation({
     onMutate: async (newMsg) => {
-      // Cancel outgoing refetches
       await utils.chat.listMessages.cancel();
 
-      // Snapshot current state
       const prevData = utils.chat.listMessages.getInfiniteData({
         sessionId: Number(sessionId),
         limit: 10,
       });
 
-      // Optimistically add message
+      // Optimistic UI
       utils.chat.listMessages.setInfiniteData(
         { sessionId: Number(sessionId), limit: 10 },
         (old) => {
@@ -63,7 +60,7 @@ export default function SessionPage() {
                     messages: [
                       ...page.messages,
                       {
-                        id: Math.random(), // temp id
+                        id: Math.random(), // temp
                         sessionId: newMsg.sessionId,
                         sender: newMsg.sender,
                         content: newMsg.content,
@@ -77,7 +74,7 @@ export default function SessionPage() {
         }
       );
 
-      setMessage(""); // clear input
+      setMessage("");
       return { prevData };
     },
     onError: (_err, _vars, ctx) => {
@@ -89,6 +86,16 @@ export default function SessionPage() {
       }
       toast.error("Failed to send message");
     },
+    onSuccess: async () => {
+      // 🔥 After saving user msg, trigger AI response
+      await generateAI.mutateAsync({ sessionId: Number(sessionId) });
+    },
+    onSettled: () => {
+      utils.chat.listMessages.invalidate({ sessionId: Number(sessionId), limit: 10 });
+    },
+  });
+
+  const generateAI = trpc.chat.generateStubbedAI.useMutation({
     onSettled: () => {
       utils.chat.listMessages.invalidate({ sessionId: Number(sessionId), limit: 10 });
     },
@@ -133,8 +140,8 @@ export default function SessionPage() {
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Type a message..."
         />
-        <Button type="submit" disabled={addMessage.isLoading}>
-          Send
+        <Button type="submit" disabled={addMessage.isLoading || generateAI.isLoading}>
+          {addMessage.isLoading || generateAI.isLoading ? "Sending..." : "Send"}
         </Button>
       </form>
     </div>
