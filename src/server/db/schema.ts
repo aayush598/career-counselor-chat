@@ -1,6 +1,9 @@
 import { pgTable, serial, text, varchar, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
+const timestamptz = (name: string) =>
+  timestamp(name, { withTimezone: true }).defaultNow().notNull();
+
 // Enum for sender type
 export const senderEnum = pgEnum("sender", ["user", "ai"]);
 
@@ -8,8 +11,8 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   name: varchar("name", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamptz("created_at"),
+  updatedAt: timestamptz("updated_at"),
 });
 
 export const chatSessions = pgTable("chat_sessions", {
@@ -17,10 +20,9 @@ export const chatSessions = pgTable("chat_sessions", {
   userId: integer("user_id")
     .references(() => users.id)
     .default(null),
-  // Title will default in the backend (mutation) if not provided
   title: varchar("title", { length: 255 }).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamptz("created_at"),
+  updatedAt: timestamptz("updated_at"),
 });
 
 export const messages = pgTable("messages", {
@@ -30,10 +32,9 @@ export const messages = pgTable("messages", {
     .notNull(),
   sender: senderEnum("sender").notNull(),
   content: text("content").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamptz("created_at"),
 });
 
-// Relations (for type-safety if needed later)
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(chatSessions),
 }));
