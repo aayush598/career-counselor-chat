@@ -1,10 +1,11 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { mockMessages } from "@/lib/mockData";
+import { trpc } from "@/lib/trpcClient";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 function MessageBubble({ sender, content }: { sender: string; content: string }) {
   return (
@@ -22,12 +23,24 @@ function MessageBubble({ sender, content }: { sender: string; content: string })
 }
 
 export default function SessionPage() {
-  const params = useParams();
-  const messages = mockMessages[params.sessionId as string] ?? [];
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const [cursor, setCursor] = useState<number | null>(null);
+
+  const { data, fetchNextPage, hasNextPage, isLoading } = trpc.chat.listMessages.useInfiniteQuery(
+    { sessionId: Number(sessionId), limit: 10 },
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+    }
+  );
+
+  if (isLoading) return <p>Loading...</p>;
+  if (!data || !data.pages.length) return <p>No messages yet.</p>;
+
+  const messages = data.pages.flatMap((p) => p.messages);
 
   return (
     <div className="flex flex-col h-[90vh] p-4 max-w-2xl mx-auto">
-      <h1 className="text-lg font-bold mb-2">Session {params.sessionId}</h1>
+      <h1 className="text-lg font-bold mb-2">Session {sessionId}</h1>
 
       <ScrollArea className="flex-1 border rounded-lg p-2">
         <div className="flex flex-col gap-2">
@@ -36,6 +49,12 @@ export default function SessionPage() {
           ))}
         </div>
       </ScrollArea>
+
+      {hasNextPage && (
+        <Button className="mt-2 w-full" onClick={() => fetchNextPage()}>
+          Load more
+        </Button>
+      )}
 
       <div className="mt-2">
         <Button className="w-full" disabled>

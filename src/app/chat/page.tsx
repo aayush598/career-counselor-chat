@@ -1,40 +1,56 @@
 "use client";
 
-import Link from "next/link";
-import { mockSessions } from "@/lib/mockData";
+import { trpc } from "@/lib/trpcClient";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import Link from "next/link";
 import { format } from "date-fns";
 
 export default function ChatPage() {
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
+
+  const { data, isLoading } = trpc.chat.listSessions.useQuery({ page, pageSize });
+
+  if (isLoading) return <p>Loading...</p>;
+
+  if (!data || data.sessions.length === 0) {
+    return (
+      <div className="p-4 text-center">
+        <p>No sessions yet.</p>
+        <Button>Start new session</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 max-w-lg mx-auto">
       <h1 className="text-xl font-bold mb-4">Your Sessions</h1>
+      <ScrollArea className="h-[70vh] space-y-2">
+        {data.sessions.map((session: { id: number; title: string; updatedAt: string }) => (
+          <Link key={session.id} href={`/chat/${session.id}`}>
+            <Card className="cursor-pointer hover:shadow-md transition">
+              <CardContent className="p-4">
+                <div className="font-medium">{session.title}</div>
+                <div className="text-xs text-gray-500">
+                  Last updated {format(new Date(session.updatedAt), "PPpp")}
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </ScrollArea>
 
-      {mockSessions.length === 0 ? (
-        <div className="text-center space-y-2">
-          <p className="text-gray-500">No sessions yet.</p>
-          <Button>Start new session</Button>
-        </div>
-      ) : (
-        <ScrollArea className="h-[70vh]">
-          <div className="space-y-2">
-            {mockSessions.map((session) => (
-              <Link key={session.id} href={`/chat/${session.id}`}>
-                <Card className="cursor-pointer hover:shadow-md transition">
-                  <CardContent className="p-4">
-                    <div className="font-medium">{session.title}</div>
-                    <div className="text-xs text-gray-500">
-                      Last updated {format(new Date(session.updatedAt), "PPpp")}
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </ScrollArea>
-      )}
+      <div className="flex justify-between mt-4">
+        <Button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+          Prev
+        </Button>
+        <Button disabled={page >= data.pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
+          Next
+        </Button>
+      </div>
     </div>
   );
 }
