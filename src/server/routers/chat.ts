@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../db";
 import { chatSessions, messages } from "../db/schema";
 import { desc, asc, eq, gt, and } from "drizzle-orm";
+import { complete } from "@/lib/aiClient";
 
 // List sessions
 const listSessions = publicProcedure
@@ -125,11 +126,52 @@ const generateStubbedAI = publicProcedure
     return inserted;
   });
 
+const generateAI = publicProcedure
+  .input(z.object({ sessionId: z.number() }))
+  .mutation(async ({ input }) => {
+    try {
+      const history = await db
+        .select()
+        .from(messages)
+        .where(eq(messages.sessionId, input.sessionId))
+        .orderBy(desc(messages.createdAt))
+        .limit(15);
+
+      const ordered = history.reverse();
+      const aiReply = await complete(
+        ordered.map((m) => ({
+          role: m.sender === "user" ? "user" : "assistant",
+          content: m.content,
+        }))
+      );
+
+      const [inserted] = await db
+        .insert(messages)
+        .values({
+          sessionId: input.sessionId,
+          content: aiReply,
+          sender: "ai",
+        })
+        .returning();
+
+      await db
+        .update(chatSessions)
+        .set({ updatedAt: new Date() })
+        .where(eq(chatSessions.id, input.sessionId));
+
+      return inserted;
+    } catch (err) {
+      console.error("generateAI failed:", err);
+      throw new Error("AI failed to generate a response");
+    }
+  });
+
 export const chatRouter = router({
   listSessions,
   getSession,
   listMessages,
   createSession,
   addMessage,
-  generateStubbedAI,
+  generateAI, // ✅ real AI
+  generateStubbedAI, // ✅ keep for local dev
 });

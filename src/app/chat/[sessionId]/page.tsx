@@ -36,7 +36,20 @@ export default function SessionPage() {
     { getNextPageParam: (lastPage) => lastPage.nextCursor }
   );
 
-  // Mutations
+  // AI mutation (real provider)
+  const generateAI = trpc.chat.generateAI.useMutation({
+    onError: () => {
+      toast.error("AI failed to respond. Please try again.");
+    },
+    onSettled: () => {
+      utils.chat.listMessages.invalidate({
+        sessionId: Number(sessionId),
+        limit: 10,
+      });
+    },
+  });
+
+  // User message mutation
   const addMessage = trpc.chat.addMessage.useMutation({
     onMutate: async (newMsg) => {
       await utils.chat.listMessages.cancel();
@@ -60,7 +73,7 @@ export default function SessionPage() {
                     messages: [
                       ...page.messages,
                       {
-                        id: Math.random(), // temp
+                        id: Math.random(), // temp id
                         sessionId: newMsg.sessionId,
                         sender: newMsg.sender,
                         content: newMsg.content,
@@ -87,17 +100,14 @@ export default function SessionPage() {
       toast.error("Failed to send message");
     },
     onSuccess: async () => {
-      // 🔥 After saving user msg, trigger AI response
+      // 🔥 trigger AI response after user message saved
       await generateAI.mutateAsync({ sessionId: Number(sessionId) });
     },
     onSettled: () => {
-      utils.chat.listMessages.invalidate({ sessionId: Number(sessionId), limit: 10 });
-    },
-  });
-
-  const generateAI = trpc.chat.generateStubbedAI.useMutation({
-    onSettled: () => {
-      utils.chat.listMessages.invalidate({ sessionId: Number(sessionId), limit: 10 });
+      utils.chat.listMessages.invalidate({
+        sessionId: Number(sessionId),
+        limit: 10,
+      });
     },
   });
 
