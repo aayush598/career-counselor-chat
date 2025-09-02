@@ -71,8 +71,31 @@ const listMessages = publicProcedure
     };
   });
 
+const createSession = publicProcedure
+  .input(
+    z.object({
+      title: z.string().optional(),
+    })
+  )
+  .mutation(async ({ input }) => {
+    const now = new Date();
+    const defaultTitle = `Untitled session – ${now.toLocaleDateString()}`;
+
+    const [session] = await db
+      .insert(chatSessions)
+      .values({
+        title: input.title || defaultTitle,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    return session; // will include id
+  });
+
 export const chatRouter = router({
   listSessions,
   getSession,
   listMessages,
+  createSession, // ✅ added
 });

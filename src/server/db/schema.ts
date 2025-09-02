@@ -17,7 +17,8 @@ export const chatSessions = pgTable("chat_sessions", {
   userId: integer("user_id")
     .references(() => users.id)
     .default(null),
-  title: varchar("title", { length: 255 }).notNull().default("Untitled Session"),
+  // Title will default in the backend (mutation) if not provided
+  title: varchar("title", { length: 255 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
