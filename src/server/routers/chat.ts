@@ -4,6 +4,17 @@ import { db } from "../db";
 import { chatSessions, messages } from "../db/schema";
 import { desc, asc, eq, gt, and } from "drizzle-orm";
 import { complete } from "@/lib/aiClient";
+import { InferSelectModel } from "drizzle-orm";
+
+// Use InferSelectModel for types that are fetched from the database
+type ChatSession = InferSelectModel<typeof chatSessions>;
+type Message = InferSelectModel<typeof messages>;
+
+// Our enriched session type with preview
+export type SessionWithPreview = ChatSession & {
+  lastMessagePreview: string | null;
+  lastMessageAt: Date | null;
+};
 
 // List sessions
 const listSessions = publicProcedure
@@ -11,26 +22,80 @@ const listSessions = publicProcedure
     z.object({
       page: z.number().min(1).default(1),
       pageSize: z.number().min(1).max(50).default(10),
+      search: z.string().nullish(), // optional search string for session title
     })
   )
   .query(async ({ input }) => {
     const offset = (input.page - 1) * input.pageSize;
-    const rows = await db
+
+    // Build where clause for search (simple ILIKE-style using SQL fragment)
+    // Drizzle's pg-core does not currently expose ilike helper in every setup;
+    // Using SQL fragment for case-insensitive search on title
+    const whereClause = input.search
+      ? sql`chat_sessions.title ILIKE ${`%${input.search}%`}`
+      : undefined;
+
+    // Select paginated sessions ordered by updated_at desc
+    // use raw SQL fragment for where if search provided
+    const baseQuery = db
       .select()
       .from(chatSessions)
       .orderBy(desc(chatSessions.updatedAt))
       .limit(input.pageSize)
       .offset(offset);
 
-    const total = Number((await db.execute(`SELECT COUNT(*) FROM chat_sessions`)).rows[0].count);
+    const rows = whereClause
+      ? await db
+          .execute(
+            // fallback raw query to include ILIKE - safe for this context
+            sql`SELECT * FROM chat_sessions WHERE ${whereClause} ORDER BY chat_sessions.updated_at DESC LIMIT ${input.pageSize} OFFSET ${offset}`
+          )
+          .then((r) => r.rows)
+      : await baseQuery;
+
+    // total count with optional search
+    const total = input.search
+      ? Number(
+          (await db.execute(sql`SELECT COUNT(*) FROM chat_sessions WHERE ${whereClause}`)).rows[0]
+            .count
+        )
+      : Number((await db.execute(`SELECT COUNT(*) FROM chat_sessions`)).rows[0].count);
+
+    // For each session, fetch the last message (preview)
+    // Note: this is an extra query per session, acceptable for small pageSize (10)
+    const sessionsWithPreview: SessionWithPreview[] = await Promise.all(
+      rows.map(async (s: ChatSession) => {
+        try {
+          const [lastMsg] = await db
+            .select()
+            .from(messages)
+            .where(eq(messages.sessionId, s.id))
+            .orderBy(desc(messages.createdAt))
+            .limit(1);
+
+          return {
+            ...s,
+            lastMessagePreview: lastMsg ? lastMsg.content : null,
+            lastMessageAt: lastMsg ? lastMsg.createdAt : null,
+          };
+        } catch {
+          // fail-safe: still return session without preview
+          return {
+            ...s,
+            lastMessagePreview: null,
+            lastMessageAt: null,
+          };
+        }
+      })
+    );
 
     return {
-      sessions: rows,
+      sessions: sessionsWithPreview,
       pagination: {
         page: input.page,
         pageSize: input.pageSize,
         total,
-        totalPages: Math.ceil(total / input.pageSize),
+        totalPages: Math.max(1, Math.ceil(total / input.pageSize)),
       },
     };
   });
