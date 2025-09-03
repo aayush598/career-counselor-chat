@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type MessageStatus = "sending" | "sent" | "error";
 
@@ -141,7 +142,16 @@ export default function SessionPage() {
     },
   });
 
-  if (isLoading) return <p>Loading...</p>;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-[90vh] p-4 max-w-2xl mx-auto space-y-2">
+        <Skeleton className="h-6 w-1/3" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-2/3" />
+        <Skeleton className="h-10 w-1/2" />
+      </div>
+    );
+  }
 
   const messages = data?.pages.flatMap((p) => p.messages) ?? [];
 

@@ -37,8 +37,17 @@ export async function complete(
     }
 
     return "(no output)";
-  } catch (error) {
-    console.error("Failed to complete AI request:", error);
-    return "(error)";
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      if (err.message.includes("429")) {
+        return "⚠️ AI is busy (rate limit). Please try again in a moment.";
+      }
+      if (err.message.includes("timeout")) {
+        return "⚠️ AI took too long to respond. Try again.";
+      }
+      console.error("AI error:", err);
+      return "⚠️ Failed to fetch AI response. Please retry.";
+    }
+    return "⚠️ Unknown error from AI.";
   }
 }
