@@ -33,9 +33,11 @@ function MessageBubble({
             ? "bg-blue-500 text-white self-end"
             : "bg-gray-200 text-gray-800 self-start"
         )}
+        aria-live={sender === "ai" ? "polite" : undefined}
       >
         {content}
       </div>
+
       <div className="text-xs text-gray-500 flex items-center gap-2">
         <span title={new Date(createdAt).toLocaleString()}>
           {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}
@@ -191,12 +193,20 @@ export default function SessionPage() {
           });
         }}
       >
+        <label htmlFor="chat-input" className="sr-only">
+          Type your message
+        </label>
         <Input
+          id="chat-input"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Type a message..."
         />
-        <Button type="submit" disabled={addMessage.isLoading || generateAI.isLoading}>
+        <Button
+          type="submit"
+          disabled={addMessage.isLoading || generateAI.isLoading}
+          aria-label="Send message"
+        >
           {addMessage.isLoading || generateAI.isLoading ? "Sending..." : "Send"}
         </Button>
       </form>
