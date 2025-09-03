@@ -1,5 +1,6 @@
 import { pgTable, serial, text, varchar, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import { index } from "drizzle-orm/pg-core";
 
 const timestamptz = (name: string) =>
   timestamp(name, { withTimezone: true }).defaultNow().notNull();
@@ -25,15 +26,22 @@ export const chatSessions = pgTable("chat_sessions", {
   updatedAt: timestamptz("updated_at"),
 });
 
-export const messages = pgTable("messages", {
-  id: serial("id").primaryKey(),
-  sessionId: integer("session_id")
-    .references(() => chatSessions.id)
-    .notNull(),
-  sender: senderEnum("sender").notNull(),
-  content: text("content").notNull(),
-  createdAt: timestamptz("created_at"),
-});
+export const messages = pgTable(
+  "messages",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: integer("session_id")
+      .references(() => chatSessions.id)
+      .notNull(),
+    sender: senderEnum("sender").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    sessionIdx: index("idx_messages_session").on(table.sessionId),
+    createdIdx: index("idx_messages_created_at").on(table.createdAt),
+  })
+);
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(chatSessions),

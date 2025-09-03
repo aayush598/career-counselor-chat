@@ -2,7 +2,7 @@ import { router, publicProcedure } from "../trpc/trpc";
 import { z } from "zod";
 import { db } from "../db";
 import { chatSessions, messages } from "../db/schema";
-import { desc, asc, eq, gt, and } from "drizzle-orm";
+import { desc, lt, asc, eq, gt, and } from "drizzle-orm";
 import { complete } from "@/lib/aiClient";
 import { InferSelectModel } from "drizzle-orm";
 
@@ -264,7 +264,51 @@ const renameSession = publicProcedure
 export const chatRouter = router({
   listSessions,
   getSession,
-  listMessages,
+  listMessages: publicProcedure
+    .input(
+      z.object({
+        sessionId: z.number(),
+        limit: z.number().min(1).max(50).default(20),
+        cursor: z.number().optional(),
+        direction: z.enum(["forward", "backward"]).default("backward"),
+      })
+    )
+    .query(async ({ input }): Promise<{ messages: MessageRow[]; nextCursor: number | null }> => {
+      const { sessionId, limit, cursor, direction } = input;
+
+      let rows: MessageRow[];
+
+      if (direction === "backward") {
+        rows = await db
+          .select()
+          .from(messages)
+          .where(
+            and(eq(messages.sessionId, sessionId), cursor ? lt(messages.id, cursor) : undefined)
+          )
+          .orderBy(desc(messages.createdAt))
+          .limit(limit + 1);
+      } else {
+        rows = await db
+          .select()
+          .from(messages)
+          .where(
+            and(eq(messages.sessionId, sessionId), cursor ? gt(messages.id, cursor) : undefined)
+          )
+          .orderBy(asc(messages.createdAt))
+          .limit(limit + 1);
+      }
+
+      let nextCursor: number | null = null;
+      if (rows.length > limit) {
+        const nextItem = rows.pop()!;
+        nextCursor = nextItem.id;
+      }
+
+      return {
+        messages: direction === "backward" ? rows.reverse() : rows,
+        nextCursor,
+      };
+    }),
   createSession,
   addMessage,
   generateAI,

@@ -8,21 +8,20 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { debounce } from "lodash";
 import { formatDistanceToNow } from "date-fns";
+
+type MessageStatus = "sending" | "sent" | "error";
 
 function MessageBubble({
   sender,
   content,
   createdAt,
   status,
-  onRetry,
 }: {
   sender: string;
   content: string;
   createdAt: string;
-  status?: "sending" | "sent" | "error";
-  onRetry?: () => void;
+  status?: MessageStatus;
 }) {
   return (
     <div className="flex flex-col max-w-xs self-start gap-1">
@@ -42,7 +41,12 @@ function MessageBubble({
         </span>
         {status === "sending" && <span className="italic">Sending…</span>}
         {status === "error" && (
-          <button onClick={onRetry} className="text-red-500 underline">
+          <button
+            onClick={() => {
+              // TODO: retry logic
+            }}
+            className="text-red-500 underline"
+          >
             Retry
           </button>
         )}
@@ -54,31 +58,20 @@ function MessageBubble({
 export default function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [message, setMessage] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [title, setTitle] = useState("");
-
-  const { data: session } = trpc.chat.getSession.useQuery(
-    { id: Number(sessionId) },
-    { onSuccess: (s) => setTitle(s.title) }
-  );
-
-  // Rename mutation
-  const rename = trpc.chat.renameSession.useMutation();
-  const saveTitle = debounce((newTitle: string) => {
-    rename.mutate({ id: Number(sessionId), title: newTitle });
-  }, 500);
 
   const utils = trpc.useUtils();
 
-  // Query messages
+  // Query: messages
   const { data, fetchNextPage, hasNextPage, isLoading } = trpc.chat.listMessages.useInfiniteQuery(
     { sessionId: Number(sessionId), limit: 10 },
     { getNextPageParam: (lastPage) => lastPage.nextCursor }
   );
 
-  // AI response mutation
+  // AI mutation
   const generateAI = trpc.chat.generateAI.useMutation({
-    onError: () => toast.error("AI failed to respond. Please try again."),
+    onError: () => {
+      toast.error("AI failed to respond. Please try again.");
+    },
     onSettled: () => {
       utils.chat.listMessages.invalidate({
         sessionId: Number(sessionId),
@@ -91,12 +84,12 @@ export default function SessionPage() {
   const addMessage = trpc.chat.addMessage.useMutation({
     onMutate: async (newMsg) => {
       await utils.chat.listMessages.cancel();
+
       const prevData = utils.chat.listMessages.getInfiniteData({
         sessionId: Number(sessionId),
         limit: 10,
       });
 
-      // Optimistic UI
       utils.chat.listMessages.setInfiniteData(
         { sessionId: Number(sessionId), limit: 10 },
         (old) => {
@@ -110,12 +103,12 @@ export default function SessionPage() {
                     messages: [
                       ...page.messages,
                       {
-                        id: Math.random(), // temp id
+                        id: Math.random(),
                         sessionId: newMsg.sessionId,
                         sender: newMsg.sender,
                         content: newMsg.content,
                         createdAt: new Date().toISOString(),
-                        status: "sending",
+                        status: "sending" as MessageStatus,
                       },
                     ],
                   }
@@ -126,27 +119,15 @@ export default function SessionPage() {
       );
 
       setMessage("");
-      return { prevData, newMsg };
+      return { prevData };
     },
-    onError: (_err, vars, ctx) => {
-      // Mark last optimistic message as error
-      utils.chat.listMessages.setInfiniteData(
-        { sessionId: Number(sessionId), limit: 10 },
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              messages: page.messages.map((m) =>
-                m.content === ctx?.newMsg.content && m.status === "sending"
-                  ? { ...m, status: "error" }
-                  : m
-              ),
-            })),
-          };
-        }
-      );
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prevData) {
+        utils.chat.listMessages.setInfiniteData(
+          { sessionId: Number(sessionId), limit: 10 },
+          ctx.prevData
+        );
+      }
       toast.error("Failed to send message");
     },
     onSuccess: async () => {
@@ -166,7 +147,7 @@ export default function SessionPage() {
 
   return (
     <div className="flex flex-col h-[90vh] p-4 max-w-2xl mx-auto">
-      <h1 className="text-lg font-bold mb-2">{title || `Session ${sessionId}`}</h1>
+      <h1 className="text-lg font-bold mb-2">Session {sessionId}</h1>
 
       <ScrollArea className="flex-1 border rounded-lg p-2">
         <div className="flex flex-col gap-2">
@@ -176,14 +157,7 @@ export default function SessionPage() {
               sender={msg.sender}
               content={msg.content}
               createdAt={msg.createdAt}
-              status={msg.status}
-              onRetry={() =>
-                addMessage.mutate({
-                  sessionId: Number(sessionId),
-                  content: msg.content,
-                  sender: "user",
-                })
-              }
+              status={msg.status as MessageStatus}
             />
           ))}
         </div>
