@@ -8,12 +8,16 @@ import { InferSelectModel } from "drizzle-orm";
 
 // Use InferSelectModel for types that are fetched from the database
 type ChatSession = InferSelectModel<typeof chatSessions>;
-type Message = InferSelectModel<typeof messages>;
 
-// Our enriched session type with preview
-export type SessionWithPreview = ChatSession & {
+// src/server/routers/chat.ts
+export type SessionWithPreview = {
+  id: number;
+  title: string;
+  userId: number | null;
+  createdAt: string; // serialized Date
+  updatedAt: string; // serialized Date
   lastMessagePreview: string | null;
-  lastMessageAt: Date | null;
+  lastMessageAt: string | null;
 };
 
 // List sessions
