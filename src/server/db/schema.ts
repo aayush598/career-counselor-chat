@@ -18,9 +18,7 @@ export const users = pgTable("users", {
 
 export const chatSessions = pgTable("chat_sessions", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .references(() => users.id)
-    .default(null),
+  userId: integer("user_id").references(() => users.id),
   title: varchar("title", { length: 255 }).notNull(),
   createdAt: timestamptz("created_at"),
   updatedAt: timestamptz("updated_at"),
