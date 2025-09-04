@@ -4,10 +4,12 @@ import { db } from "../db";
 import { chatSessions, messages } from "../db/schema";
 import { desc, lt, asc, eq, gt, and } from "drizzle-orm";
 import { complete } from "@/lib/aiClient";
-import { InferSelectModel } from "drizzle-orm";
+import { InferSelectModel, sql } from "drizzle-orm";
 
 // Use InferSelectModel for types that are fetched from the database
 type ChatSession = InferSelectModel<typeof chatSessions>;
+// Infer message row type from schema
+export type MessageRow = InferSelectModel<typeof messages>;
 
 // src/server/routers/chat.ts
 export type SessionWithPreview = {
@@ -207,9 +209,10 @@ const generateAI = publicProcedure
 
     const ordered = history.reverse();
 
+    // 🔥 Map DB sender to OpenAI roles
     const aiReply = await complete(
       ordered.map((m) => ({
-        role: m.sender === "user" ? "user" : "assistant",
+        role: m.sender === "user" ? "user" : "assistant", // ai → assistant
         content: m.content,
       }))
     );
@@ -219,7 +222,7 @@ const generateAI = publicProcedure
       .values({
         sessionId: input.sessionId,
         content: aiReply,
-        sender: "ai",
+        sender: "ai", // still "ai" in DB
       })
       .returning();
 
@@ -230,14 +233,14 @@ const generateAI = publicProcedure
       .where(eq(chatSessions.id, input.sessionId))
       .returning();
 
-    // 🔥 Auto-title logic: only if still “Untitled…”
+    // Auto-title logic
     if (session?.title?.startsWith("Untitled")) {
       const titleSuggestion = await complete([
         {
           role: "system",
           content: "Summarize this conversation in 5 words or fewer, suitable as a chat title.",
         },
-        ...ordered.map((m) => ({
+        ...ordered.map((m): { role: "user" | "assistant"; content: string } => ({
           role: m.sender === "user" ? "user" : "assistant",
           content: m.content,
         })),
