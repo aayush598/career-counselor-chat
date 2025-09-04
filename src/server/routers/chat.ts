@@ -118,22 +118,42 @@ const listMessages = publicProcedure
   .input(
     z.object({
       sessionId: z.number(),
-      cursor: z.number().nullish(),
       limit: z.number().min(1).max(50).default(20),
+      cursor: z.number().optional(),
+      direction: z.enum(["forward", "backward"]).default("backward"),
     })
   )
-  .query(async ({ input }) => {
-    const conditions = [eq(messages.sessionId, input.sessionId)];
-    if (input.cursor) conditions.push(gt(messages.id, input.cursor));
+  .query(async ({ input }): Promise<{ messages: MessageRow[]; nextCursor: number | null }> => {
+    const { sessionId, limit, cursor, direction } = input;
 
-    const rows = await db
-      .select()
-      .from(messages)
-      .where(and(...conditions))
-      .orderBy(asc(messages.createdAt))
-      .limit(input.limit);
+    let rows: MessageRow[];
 
-    return { messages: rows, nextCursor: rows.length ? rows[rows.length - 1].id : null };
+    if (direction === "backward") {
+      rows = await db
+        .select()
+        .from(messages)
+        .where(and(eq(messages.sessionId, sessionId), cursor ? lt(messages.id, cursor) : undefined))
+        .orderBy(desc(messages.createdAt))
+        .limit(limit + 1);
+    } else {
+      rows = await db
+        .select()
+        .from(messages)
+        .where(and(eq(messages.sessionId, sessionId), cursor ? gt(messages.id, cursor) : undefined))
+        .orderBy(asc(messages.createdAt))
+        .limit(limit + 1);
+    }
+
+    let nextCursor: number | null = null;
+    if (rows.length > limit) {
+      const nextItem = rows.pop()!;
+      nextCursor = nextItem.id;
+    }
+
+    return {
+      messages: direction === "backward" ? rows.reverse() : rows,
+      nextCursor,
+    };
   });
 
 // Create session
@@ -271,54 +291,10 @@ const renameSession = publicProcedure
 export const chatRouter = router({
   listSessions,
   getSession,
-  listMessages: publicProcedure
-    .input(
-      z.object({
-        sessionId: z.number(),
-        limit: z.number().min(1).max(50).default(20),
-        cursor: z.number().optional(),
-        direction: z.enum(["forward", "backward"]).default("backward"),
-      })
-    )
-    .query(async ({ input }): Promise<{ messages: MessageRow[]; nextCursor: number | null }> => {
-      const { sessionId, limit, cursor, direction } = input;
-
-      let rows: MessageRow[];
-
-      if (direction === "backward") {
-        rows = await db
-          .select()
-          .from(messages)
-          .where(
-            and(eq(messages.sessionId, sessionId), cursor ? lt(messages.id, cursor) : undefined)
-          )
-          .orderBy(desc(messages.createdAt))
-          .limit(limit + 1);
-      } else {
-        rows = await db
-          .select()
-          .from(messages)
-          .where(
-            and(eq(messages.sessionId, sessionId), cursor ? gt(messages.id, cursor) : undefined)
-          )
-          .orderBy(asc(messages.createdAt))
-          .limit(limit + 1);
-      }
-
-      let nextCursor: number | null = null;
-      if (rows.length > limit) {
-        const nextItem = rows.pop()!;
-        nextCursor = nextItem.id;
-      }
-
-      return {
-        messages: direction === "backward" ? rows.reverse() : rows,
-        nextCursor,
-      };
-    }),
+  listMessages,
   createSession,
   addMessage,
   generateAI,
   generateStubbedAI,
-  renameSession, // 👈 add this
+  renameSession,
 });
