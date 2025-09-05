@@ -5,6 +5,7 @@ import { chatSessions, messages } from "../db/schema";
 import { desc, lt, asc, eq, gt, and } from "drizzle-orm";
 import { complete } from "@/lib/aiClient";
 import { InferSelectModel, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 
 // Infer session & message types
 type ChatSession = InferSelectModel<typeof chatSessions>;
@@ -14,10 +15,10 @@ export type SessionWithPreview = {
   id: number;
   title: string;
   userId: number | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
   lastMessagePreview: string | null;
-  lastMessageAt: string | null;
+  lastMessageAt: Date | null;
 };
 
 // List sessions (scoped to logged-in user)
@@ -31,7 +32,10 @@ const listSessions = protectedProcedure
   )
   .query(async ({ input, ctx }) => {
     const offset = (input.page - 1) * input.pageSize;
-    const userId = Number(ctx.session.user.id);
+    const userId = parseInt(ctx.session.user.id, 10);
+    if (isNaN(userId)) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
 
     const whereClause = input.search
       ? sql`chat_sessions.user_id = ${userId} AND chat_sessions.title ILIKE ${`%${input.search}%`}`

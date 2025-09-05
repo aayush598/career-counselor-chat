@@ -59,14 +59,10 @@ function MessageBubble({
     </div>
   );
 }
-
 export default function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [message, setMessage] = useState("");
   const { data: session, status } = useSession();
-
-  if (status === "loading") return <p>Loading...</p>;
-  if (!session) redirect("/login");
 
   const utils = trpc.useUtils();
 
@@ -78,14 +74,9 @@ export default function SessionPage() {
 
   // AI mutation
   const generateAI = trpc.chat.generateAI.useMutation({
-    onError: () => {
-      toast.error("AI failed to respond. Please try again.");
-    },
+    onError: () => toast.error("AI failed to respond. Please try again."),
     onSettled: () => {
-      utils.chat.listMessages.invalidate({
-        sessionId: Number(sessionId),
-        limit: 10,
-      });
+      utils.chat.listMessages.invalidate({ sessionId: Number(sessionId), limit: 10 });
     },
   });
 
@@ -143,12 +134,15 @@ export default function SessionPage() {
       await generateAI.mutateAsync({ sessionId: Number(sessionId) });
     },
     onSettled: () => {
-      utils.chat.listMessages.invalidate({
-        sessionId: Number(sessionId),
-        limit: 10,
-      });
+      utils.chat.listMessages.invalidate({ sessionId: Number(sessionId), limit: 10 });
     },
   });
+
+  // 🔑 Conditional rendering happens AFTER all hooks
+  if (status === "loading") return <p>Loading...</p>;
+  if (!session) {
+    redirect("/login");
+  }
 
   if (isLoading) {
     return (
