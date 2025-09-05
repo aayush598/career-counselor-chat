@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 type MessageStatus = "sending" | "sent" | "error";
 
@@ -61,6 +63,10 @@ function MessageBubble({
 export default function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [message, setMessage] = useState("");
+  const { data: session, status } = useSession();
+
+  if (status === "loading") return <p>Loading...</p>;
+  if (!session) redirect("/login");
 
   const utils = trpc.useUtils();
 

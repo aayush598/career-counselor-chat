@@ -1,4 +1,4 @@
-import { router, publicProcedure } from "../trpc/trpc";
+import { router, publicProcedure, protectedProcedure } from "../trpc/trpc";
 import { z } from "zod";
 import { db } from "../db";
 import { chatSessions, messages } from "../db/schema";
@@ -6,92 +6,65 @@ import { desc, lt, asc, eq, gt, and } from "drizzle-orm";
 import { complete } from "@/lib/aiClient";
 import { InferSelectModel, sql } from "drizzle-orm";
 
-// Use InferSelectModel for types that are fetched from the database
+// Infer session & message types
 type ChatSession = InferSelectModel<typeof chatSessions>;
-// Infer message row type from schema
 export type MessageRow = InferSelectModel<typeof messages>;
 
-// src/server/routers/chat.ts
 export type SessionWithPreview = {
   id: number;
   title: string;
   userId: number | null;
-  createdAt: string; // serialized Date
-  updatedAt: string; // serialized Date
+  createdAt: string;
+  updatedAt: string;
   lastMessagePreview: string | null;
   lastMessageAt: string | null;
 };
 
-// List sessions
-const listSessions = publicProcedure
+// List sessions (scoped to logged-in user)
+const listSessions = protectedProcedure
   .input(
     z.object({
       page: z.number().min(1).default(1),
       pageSize: z.number().min(1).max(50).default(10),
-      search: z.string().nullish(), // optional search string for session title
+      search: z.string().nullish(),
     })
   )
-  .query(async ({ input }) => {
+  .query(async ({ input, ctx }) => {
     const offset = (input.page - 1) * input.pageSize;
+    const userId = Number(ctx.session.user.id);
 
-    // Build where clause for search (simple ILIKE-style using SQL fragment)
-    // Drizzle's pg-core does not currently expose ilike helper in every setup;
-    // Using SQL fragment for case-insensitive search on title
     const whereClause = input.search
-      ? sql`chat_sessions.title ILIKE ${`%${input.search}%`}`
-      : undefined;
+      ? sql`chat_sessions.user_id = ${userId} AND chat_sessions.title ILIKE ${`%${input.search}%`}`
+      : sql`chat_sessions.user_id = ${userId}`;
 
-    // Select paginated sessions ordered by updated_at desc
-    // use raw SQL fragment for where if search provided
-    const baseQuery = db
-      .select()
-      .from(chatSessions)
-      .orderBy(desc(chatSessions.updatedAt))
-      .limit(input.pageSize)
-      .offset(offset);
+    // fetch paginated sessions
+    const rows = await db
+      .execute(
+        sql`SELECT * FROM chat_sessions 
+            WHERE ${whereClause}
+            ORDER BY chat_sessions.updated_at DESC
+            LIMIT ${input.pageSize} OFFSET ${offset}`
+      )
+      .then((r) => r.rows as ChatSession[]);
 
-    const rows = whereClause
-      ? await db
-          .execute(
-            // fallback raw query to include ILIKE - safe for this context
-            sql`SELECT * FROM chat_sessions WHERE ${whereClause} ORDER BY chat_sessions.updated_at DESC LIMIT ${input.pageSize} OFFSET ${offset}`
-          )
-          .then((r) => r.rows)
-      : await baseQuery;
+    const total = Number(
+      (await db.execute(sql`SELECT COUNT(*) FROM chat_sessions WHERE ${whereClause}`)).rows[0].count
+    );
 
-    // total count with optional search
-    const total = input.search
-      ? Number(
-          (await db.execute(sql`SELECT COUNT(*) FROM chat_sessions WHERE ${whereClause}`)).rows[0]
-            .count
-        )
-      : Number((await db.execute(`SELECT COUNT(*) FROM chat_sessions`)).rows[0].count);
-
-    // For each session, fetch the last message (preview)
-    // Note: this is an extra query per session, acceptable for small pageSize (10)
     const sessionsWithPreview: SessionWithPreview[] = await Promise.all(
       rows.map(async (s: ChatSession) => {
-        try {
-          const [lastMsg] = await db
-            .select()
-            .from(messages)
-            .where(eq(messages.sessionId, s.id))
-            .orderBy(desc(messages.createdAt))
-            .limit(1);
+        const [lastMsg] = await db
+          .select()
+          .from(messages)
+          .where(eq(messages.sessionId, s.id))
+          .orderBy(desc(messages.createdAt))
+          .limit(1);
 
-          return {
-            ...s,
-            lastMessagePreview: lastMsg ? lastMsg.content : null,
-            lastMessageAt: lastMsg ? lastMsg.createdAt : null,
-          };
-        } catch {
-          // fail-safe: still return session without preview
-          return {
-            ...s,
-            lastMessagePreview: null,
-            lastMessageAt: null,
-          };
-        }
+        return {
+          ...s,
+          lastMessagePreview: lastMsg ? lastMsg.content : null,
+          lastMessageAt: lastMsg ? lastMsg.createdAt : null,
+        };
       })
     );
 
