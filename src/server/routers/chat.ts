@@ -15,10 +15,10 @@ export type SessionWithPreview = {
   id: number;
   title: string;
   userId: number | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   lastMessagePreview: string | null;
-  lastMessageAt: Date | null;
+  lastMessageAt: string | null;
 };
 
 // List sessions (scoped to logged-in user)
@@ -55,6 +55,12 @@ const listSessions = protectedProcedure
       (await db.execute(sql`SELECT COUNT(*) FROM chat_sessions WHERE ${whereClause}`)).rows[0].count
     );
 
+    function toIsoSafe(d: unknown): string | null {
+      if (!d) return null;
+      const date = d instanceof Date ? d : new Date(d as string);
+      return isNaN(date.getTime()) ? null : date.toISOString();
+    }
+
     const sessionsWithPreview: SessionWithPreview[] = await Promise.all(
       rows.map(async (s: ChatSession) => {
         const [lastMsg] = await db
@@ -66,8 +72,10 @@ const listSessions = protectedProcedure
 
         return {
           ...s,
+          createdAt: toIsoSafe(s.createdAt)!,
+          updatedAt: toIsoSafe(s.updatedAt)!,
           lastMessagePreview: lastMsg ? lastMsg.content : null,
-          lastMessageAt: lastMsg ? lastMsg.createdAt : null,
+          lastMessageAt: lastMsg ? toIsoSafe(lastMsg.createdAt) : null,
         };
       })
     );
@@ -134,15 +142,26 @@ const listMessages = publicProcedure
   });
 
 // Create session
-const createSession = publicProcedure
+const createSession = protectedProcedure // ⬅️ require auth
   .input(z.object({ title: z.string().optional() }))
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input, ctx }) => {
     const now = new Date();
     const defaultTitle = `Untitled session – ${now.toLocaleDateString()}`;
+
+    if (!ctx.session?.user?.id) {
+      throw new Error("User not authenticated");
+    }
+
     const [session] = await db
       .insert(chatSessions)
-      .values({ title: input.title || defaultTitle, createdAt: now, updatedAt: now })
+      .values({
+        userId: Number(ctx.session.user.id), // store user_id
+        title: input.title || defaultTitle,
+        createdAt: now,
+        updatedAt: now,
+      })
       .returning();
+
     return session;
   });
 
