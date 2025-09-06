@@ -169,7 +169,6 @@ export default function SessionPage() {
               sender={msg.sender}
               content={msg.content}
               createdAt={msg.createdAt}
-              status={msg.status as MessageStatus}
             />
           ))}
         </div>
@@ -204,10 +203,10 @@ export default function SessionPage() {
         />
         <Button
           type="submit"
-          disabled={addMessage.isLoading || generateAI.isLoading}
+          disabled={addMessage.isPending || generateAI.isPending}
           aria-label="Send message"
         >
-          {addMessage.isLoading || generateAI.isLoading ? "Sending..." : "Send"}
+          {addMessage.isPending || generateAI.isPending ? "Sending..." : "Send"}
         </Button>
       </form>
     </div>
