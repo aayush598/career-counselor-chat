@@ -14,7 +14,7 @@ Built with **Next.js 13 (App Router)**, **tRPC**, **Drizzle ORM**, **NextAuth.js
 
 - 💬 **Chat Sessions**
   - Create multiple chat sessions
-  - Sessions tied to logged-in user (RLS enforced in code)
+  - Sessions tied to logged-in user
   - Session list with search, pagination, and previews
 
 - 🎨 **UI/UX**
@@ -54,11 +54,11 @@ src/
 │    └── api/          # Next.js API routes
 ├── components/        # Reusable UI components (Navbar, Buttons, Forms)
 ├── lib/               # Helpers (trpc client, AI client)
-├── server/            # Backend (tRPC, routers, db, auth)
-│    ├── db/           # Drizzle ORM setup & schema
-│    ├── routers/      # tRPC routers (chat, auth)
-│    └── trpc/         # tRPC config (router, procedure utils)
-└── styles/            # Global styles (Tailwind)
+└── server/            # Backend (tRPC, routers, db, auth)
+     ├── db/           # Drizzle ORM setup & schema
+     ├── routers/      # tRPC routers (chat, auth)
+     └── trpc/         # tRPC config (router, procedure utils)
+
 
 ```
 
@@ -84,15 +84,12 @@ npm install
 Create a `.env.local` file in the root:
 
 ```env
-# NextAuth
-NEXTAUTH_SECRET=your-secret-key
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/career_chat
+AI_API_PROVIDER=openai
+OPENAI_API_KEY=your-api-key
+NEXTAUTH_SECRET=your-secret
 NEXTAUTH_URL=http://localhost:3000
-
-# Database
-DATABASE_URL=postgres://user:password@localhost:5432/career_chat_db
-
-# AI (if using OpenAI or similar)
-OPENAI_API_KEY=your-openai-key
+USE_STUB_AI=false
 ```
 
 > 🔑 Generate `NEXTAUTH_SECRET` with:
@@ -119,7 +116,7 @@ Ensure your DB has the following tables:
 ### 5. Start Development Server
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 Navigate to:
@@ -149,16 +146,24 @@ Navigate to:
 
 ### Login / Register
 
-![Register Page](https://dummyimage.com/600x400/000/fff&text=Register+Page)
-![Login Page](https://dummyimage.com/600x400/000/fff&text=Login+Page)
+![Register Page](./public/readme-images/homepage.png)
+
+### Login / Register
+
+![Register Page](./public/readme-images/register.png)
+![Login Page](./public/readme-images/login.png)
 
 ### Chat Sessions
 
-![Chat Dashboard](https://dummyimage.com/600x400/000/fff&text=Chat+Dashboard)
+![Chat Dashboard](./public/readme-images/chats.png)
+
+### Chatbot
+
+![Chat Dashboard](./public/readme-images/chatbot.png)
 
 ### Dark Mode
 
-![Dark Mode](https://dummyimage.com/600x400/000/fff&text=Dark+Mode)
+![Dark Mode](./public/readme-images/darkmode.png)
 
 ---
 
@@ -168,19 +173,6 @@ Navigate to:
 
 - Add environment variables in **Vercel Dashboard**
 - Connect repo and deploy
-
-### Docker (Optional)
-
-```dockerfile
-# Dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
-COPY . .
-RUN pnpm build
-CMD ["pnpm", "start"]
-```
 
 ---
 

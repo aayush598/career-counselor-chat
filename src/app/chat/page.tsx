@@ -13,6 +13,7 @@ import { debounce } from "lodash";
 import type { SessionWithPreview } from "@/server/routers/chat";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const PAGE_SIZE = 10;
 
@@ -72,12 +73,19 @@ export default function ChatPage() {
 
   if (isLoading) {
     return (
-      <div className="p-4 max-w-lg mx-auto">
-        <div className="mb-4 flex gap-2">
-          <Input placeholder="Search sessions..." value={search} onChange={onSearchChange} />
-          <Button onClick={onCreate}>New Chat</Button>
+      <div className="p-4 max-w-lg mx-auto space-y-4">
+        {/* Search input and button skeleton */}
+        <div className="flex gap-2 mb-4">
+          <Skeleton className="h-10 flex-1" /> {/* Input */}
+          <Skeleton className="h-10 w-24" /> {/* Button */}
         </div>
-        <p>Loading sessions…</p>
+
+        {/* Skeleton for session cards */}
+        <div className="space-y-2">
+          {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
       </div>
     );
   }
