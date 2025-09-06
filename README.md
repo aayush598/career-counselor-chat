@@ -1,36 +1,205 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💼 Career Counselor Chat App
 
-## Getting Started
+AI-powered chat application to help users get **career advice** through interactive chat sessions.  
+Built with **Next.js 13 (App Router)**, **tRPC**, **Drizzle ORM**, **NextAuth.js**, and **PostgreSQL**.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 Features
+
+- 🔑 **Authentication**
+  - Register & login with email/password (hashed with bcrypt)
+  - Session management via NextAuth
+  - Protected `/chat/*` routes
+
+- 💬 **Chat Sessions**
+  - Create multiple chat sessions
+  - Sessions tied to logged-in user (RLS enforced in code)
+  - Session list with search, pagination, and previews
+
+- 🎨 **UI/UX**
+  - Responsive design with **TailwindCSS** + **shadcn/ui**
+  - Light/Dark theme toggle with `next-themes`
+  - Clean forms and accessible components
+
+- 🧠 **AI Integration**
+  - Connects to an AI client (`lib/aiClient.ts`) to generate career advice
+
+- 🗄 **Database**
+  - PostgreSQL database
+  - Managed via Drizzle ORM migrations
+  - Tables: `users`, `chat_sessions`, `messages`
+
+---
+
+## 🛠 Tech Stack
+
+- **Frontend**: Next.js 13 (App Router), React, TailwindCSS, shadcn/ui
+- **Backend**: tRPC, NextAuth.js
+- **Database**: PostgreSQL + Drizzle ORM
+- **Auth**: Credentials provider with bcrypt hashing
+- **AI**: Custom `aiClient` wrapper (OpenAI or similar)
+
+---
+
+## 📂 Project Structure
+
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+src/
+├── app/               # Next.js App Router pages
+│    ├── chat/         # Protected chat pages
+│    ├── login/        # Login page
+│    ├── register/     # Registration page
+│    └── api/          # Next.js API routes
+├── components/        # Reusable UI components (Navbar, Buttons, Forms)
+├── lib/               # Helpers (trpc client, AI client)
+├── server/            # Backend (tRPC, routers, db, auth)
+│    ├── db/           # Drizzle ORM setup & schema
+│    ├── routers/      # tRPC routers (chat, auth)
+│    └── trpc/         # tRPC config (router, procedure utils)
+└── styles/            # Global styles (Tailwind)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## ⚙️ Setup & Installation
 
-To learn more about Next.js, take a look at the following resources:
+### 1. Clone Repository
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+git clone https://github.com/aayush598/career-counselor-chat.git
+cd career-counselor-chat
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 2. Install Dependencies
 
-## Deploy on Vercel
+```bash
+npm install
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 3. Environment Variables
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Create a `.env.local` file in the root:
+
+```env
+# NextAuth
+NEXTAUTH_SECRET=your-secret-key
+NEXTAUTH_URL=http://localhost:3000
+
+# Database
+DATABASE_URL=postgres://user:password@localhost:5432/career_chat_db
+
+# AI (if using OpenAI or similar)
+OPENAI_API_KEY=your-openai-key
+```
+
+> 🔑 Generate `NEXTAUTH_SECRET` with:
+
+```bash
+openssl rand -base64 32
+```
+
+### 4. Database Setup
+
+Run PostgreSQL migrations via Drizzle:
+
+```bash
+npm drizzle-kit generate
+npm drizzle-kit push
+```
+
+Ensure your DB has the following tables:
+
+- `users` → id, name, email, password_hash
+- `chat_sessions` → id, user_id, title, timestamps
+- `messages` → id, session_id, role, content, timestamps
+
+### 5. Start Development Server
+
+```bash
+pnpm dev
+```
+
+Navigate to:
+👉 [http://localhost:3000](http://localhost:3000)
+
+---
+
+## 🔐 Authentication Flow
+
+- `/register` → Register with **name, email, password**
+- `/login` → Login with email & password
+- Protected routes (`/chat/*`) redirect to `/register` if not logged in
+- NextAuth session stored in cookies
+
+---
+
+## 📡 API Endpoints (via tRPC)
+
+- `chat.listSessions` → List user’s chat sessions (with pagination & search)
+- `chat.createSession` → Create a new chat session
+- `chat.getMessages` → Get messages for a session
+- `chat.addMessage` → Add user message & trigger AI response
+
+---
+
+## 🖼 Screenshots
+
+### Login / Register
+
+![Register Page](https://dummyimage.com/600x400/000/fff&text=Register+Page)
+![Login Page](https://dummyimage.com/600x400/000/fff&text=Login+Page)
+
+### Chat Sessions
+
+![Chat Dashboard](https://dummyimage.com/600x400/000/fff&text=Chat+Dashboard)
+
+### Dark Mode
+
+![Dark Mode](https://dummyimage.com/600x400/000/fff&text=Dark+Mode)
+
+---
+
+## 📦 Deployment
+
+### Vercel
+
+- Add environment variables in **Vercel Dashboard**
+- Connect repo and deploy
+
+### Docker (Optional)
+
+```dockerfile
+# Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
+COPY . .
+RUN pnpm build
+CMD ["pnpm", "start"]
+```
+
+---
+
+## 🤝 Contributing
+
+1. Fork this repo
+2. Create your feature branch (`git checkout -b feature/my-feature`)
+3. Commit changes (`git commit -m "Add my feature"`)
+4. Push to branch (`git push origin feature/my-feature`)
+5. Open a Pull Request
+
+---
+
+## 📜 License
+
+MIT License © 2025 \[Aayush Gid]
+
+---
+
+## 👨‍💻 Author
+
+Built with ❤️ by **Aayush Gid**
