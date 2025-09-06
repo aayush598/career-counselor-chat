@@ -67,7 +67,7 @@ export default function ChatPage() {
     return <p className="p-4 text-center">Checking authentication…</p>;
   }
   if (!session) {
-    redirect("/register");
+    redirect("/login");
   }
 
   if (isLoading) {
