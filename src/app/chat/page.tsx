@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { formatDistanceToNow } from "date-fns";
 import { debounce } from "lodash";
 import type { SessionWithPreview } from "@/server/routers/chat";
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
 
 const PAGE_SIZE = 10;
 
@@ -19,12 +21,14 @@ export default function ChatPage() {
   const [search, setSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Debounce search term updates so queries are not fired on every keystroke
+  const { data: session, status } = useSession();
+
+  // Debounce search term updates
   const debounced = useMemo(
     () =>
       debounce((val: string) => {
         setSearchTerm(val);
-        setPage(1); // reset to first page on new search
+        setPage(1);
       }, 350),
     []
   );
@@ -34,26 +38,37 @@ export default function ChatPage() {
     debounced(e.target.value);
   }
 
-  // Query sessions with optional search
-  const { data, isLoading, error } = trpc.chat.listSessions.useQuery({
-    page,
-    pageSize: PAGE_SIZE,
-    search: searchTerm || undefined,
-  });
+  // ✅ Always call the hook, but disable until user is authenticated
+  const { data, isLoading, error } = trpc.chat.listSessions.useQuery(
+    {
+      page,
+      pageSize: PAGE_SIZE,
+      search: searchTerm || undefined,
+    },
+    {
+      enabled: !!session, // <-- prevents fetching when not logged in
+    }
+  );
 
-  // create-session mutation & redirect (if you still use it)
   const createSession = trpc.chat.createSession.useMutation();
 
   const onCreate = async () => {
     try {
       const s = await createSession.mutateAsync({});
-      // navigate to newly created session (client router)
       window.location.href = `/chat/${s.id}`;
     } catch (err) {
       console.error("Create session failed", err);
       alert("Failed to create session");
     }
   };
+
+  // Auth redirects handled after hooks
+  if (status === "loading") {
+    return <p className="p-4 text-center">Checking authentication…</p>;
+  }
+  if (!session) {
+    redirect("/register");
+  }
 
   if (isLoading) {
     return (

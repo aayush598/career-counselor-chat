@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { Briefcase, TrendingUp, FileText, BarChart3 } from "lucide-react";
 import Link from "next/link";
 
 export default function Home() {
@@ -8,7 +8,10 @@ export default function Home() {
       <header className="relative w-full py-20 md:py-32 bg-gradient-to-r from-blue-600 to-indigo-700 text-white text-center overflow-hidden">
         <div
           className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: "url('/background-pattern.svg')" }}
+          style={{
+            backgroundImage: `url('https://www.toptal.com/designers/subtlepatterns/patterns/memphis-mini.png')`,
+            backgroundRepeat: "repeat",
+          }}
         ></div>
         <div className="relative z-10 container mx-auto px-4">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-4">
@@ -18,10 +21,11 @@ export default function Home() {
             Get personalized, data-driven career advice tailored to your unique skills, interests,
             and aspirations. Your future starts here.
           </p>
-          <Link href="/chat" legacyBehavior>
-            <a className="inline-block px-8 py-4 text-lg font-semibold bg-white text-blue-600 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50">
-              Start Your Free Career Session
-            </a>
+          <Link
+            href="/chat"
+            className="inline-block px-8 py-4 text-lg font-semibold bg-white text-blue-600 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50"
+          >
+            Start Your Free Career Session
           </Link>
         </div>
       </header>
@@ -67,52 +71,28 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Key Features</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="flex flex-col items-center p-6 text-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-sm">
-              <Image
-                src="/icons/career-path.svg"
-                alt="Career Path Icon"
-                width={64}
-                height={64}
-                className="mb-4"
-              />
+              <Briefcase className="w-16 h-16 text-blue-500 mb-4" />
               <h4 className="text-xl font-bold mb-2">Dynamic Career Paths</h4>
               <p className="text-gray-600 dark:text-gray-400">
                 Recommendations that adapt to market trends and your evolving goals.
               </p>
             </div>
             <div className="flex flex-col items-center p-6 text-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-sm">
-              <Image
-                src="/icons/skill-gap.svg"
-                alt="Skill Gap Icon"
-                width={64}
-                height={64}
-                className="mb-4"
-              />
+              <TrendingUp className="w-16 h-16 text-blue-500 mb-4" />
               <h4 className="text-xl font-bold mb-2">Skill Gap Analysis</h4>
               <p className="text-gray-600 dark:text-gray-400">
                 Identify the skills you need to learn to land your dream job.
               </p>
             </div>
             <div className="flex flex-col items-center p-6 text-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-sm">
-              <Image
-                src="/icons/resume-prep.svg"
-                alt="Resume Prep Icon"
-                width={64}
-                height={64}
-                className="mb-4"
-              />
+              <FileText className="w-16 h-16 text-blue-500 mb-4" />
               <h4 className="text-xl font-bold mb-2">Resume & Interview Prep</h4>
               <p className="text-gray-600 dark:text-gray-400">
                 Get instant feedback on your resume and practice for interviews.
               </p>
             </div>
             <div className="flex flex-col items-center p-6 text-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-sm">
-              <Image
-                src="/icons/industry-insights.svg"
-                alt="Industry Insights Icon"
-                width={64}
-                height={64}
-                className="mb-4"
-              />
+              <BarChart3 className="w-16 h-16 text-blue-500 mb-4" />
               <h4 className="text-xl font-bold mb-2">Industry Insights</h4>
               <p className="text-gray-600 dark:text-gray-400">
                 Explore salary expectations, job growth, and required skills for any field.
@@ -160,10 +140,11 @@ export default function Home() {
           <p className="text-lg mb-8">
             Stop guessing. Start planning. Your personalized career path is just a click away.
           </p>
-          <Link href="/chat" legacyBehavior>
-            <a className="inline-block px-8 py-4 text-lg font-semibold bg-white text-blue-600 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50">
-              Chat with Career Counselor AI Now
-            </a>
+          <Link
+            href="/chat"
+            className="inline-block px-8 py-4 text-lg font-semibold bg-white text-blue-600 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50"
+          >
+            Chat with Career Counselor AI Now
           </Link>
         </section>
       </main>
