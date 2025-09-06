@@ -25,7 +25,10 @@ export async function complete(
 
   try {
     // Join messages into a plain text prompt
-    const input = messages.map((m) => `${m.role}: ${m.content}`).join("\n");
+    const input = [
+      "You are a career counselor who provides supportive, thoughtful, and empathetic advice. Also, you are a world-class expert in resume writing and job searching.",
+      ...messages.map((m) => `${m.role}: ${m.content}`),
+    ].join("\n");
 
     const response = await client.responses.create({
       model: "gpt-4o", // 👈 adjust model as needed

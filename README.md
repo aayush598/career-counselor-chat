@@ -142,6 +142,12 @@ Navigate to:
 
 ---
 
+## Demo
+
+<video src="./public/videos/Demo.mp4" controls muted autoplay loop>
+  Your browser does not support the video tag.
+</video>
+
 ## 🖼 Screenshots
 
 ### Login / Register
