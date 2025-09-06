@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1757007681889,
-      "tag": "0000_windy_kingpin",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1757060349853,
-      "tag": "0001_classy_whiplash",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1757061461739,
-      "tag": "0002_fat_spirit",
+      "when": 1757167942621,
+      "tag": "0000_omniscient_blue_blade",
       "breakpoints": true
     }
   ]
