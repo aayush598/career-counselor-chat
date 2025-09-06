@@ -75,7 +75,7 @@ export default function ChatPage() {
       <div className="p-4 max-w-lg mx-auto">
         <div className="mb-4 flex gap-2">
           <Input placeholder="Search sessions..." value={search} onChange={onSearchChange} />
-          <Button onClick={onCreate}>New Session</Button>
+          <Button onClick={onCreate}>New Chat</Button>
         </div>
         <p>Loading sessions…</p>
       </div>
@@ -87,7 +87,7 @@ export default function ChatPage() {
       <div className="p-4 max-w-lg mx-auto">
         <div className="mb-4 flex gap-2">
           <Input placeholder="Search sessions..." value={search} onChange={onSearchChange} />
-          <Button onClick={onCreate}>New Session</Button>
+          <Button onClick={onCreate}>New Chat</Button>
         </div>
         <div className="text-red-600">Failed to load sessions: {String(error.message)}</div>
       </div>
@@ -105,14 +105,14 @@ export default function ChatPage() {
     <div className="p-4 max-w-lg mx-auto">
       <div className="mb-4 flex gap-2">
         <Input placeholder="Search sessions..." value={search} onChange={onSearchChange} />
-        <Button onClick={onCreate}>New Session</Button>
+        <Button onClick={onCreate}>New Chat</Button>
       </div>
 
       {noSessionsAtAll ? (
         <div className="text-center p-8 border rounded">
           <h2 className="text-lg font-medium mb-2">No sessions yet</h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Start a new session to get career advice from the AI counselor.
+            Start a new chat to get career advice from the AI counselor.
           </p>
           <Button onClick={onCreate}>Start your first session</Button>
         </div>
