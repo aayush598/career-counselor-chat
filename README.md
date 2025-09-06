@@ -180,6 +180,14 @@ Navigate to:
 - Add environment variables in **Vercel Dashboard**
 - Connect repo and deploy
 
+### Docker
+
+Deployed docker hub link : [https://hub.docker.com/r/aayushgid/career-counselor-chat](https://hub.docker.com/r/aayushgid/career-counselor-chat)
+
+```
+docker pull aayushgid/career-counselor-chat
+```
+
 ---
 
 ## 🤝 Contributing
